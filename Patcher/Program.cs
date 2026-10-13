@@ -12,18 +12,72 @@ namespace Patcher
         {
             Console.WriteLine("=== Tavern Master Mod Installer & Patcher ===");
 
-            string gameAppDir = "/Volumes/King's SSD/SteamLibrary/steamapps/common/Tavern Master/TavernMaster_Mac.app";
-            string managedDir = Path.Combine(gameAppDir, "Contents/Resources/Data/Managed");
-            string targetDll = Path.Combine(managedDir, "Assembly-CSharp.dll");
-            string backupDll = Path.Combine(managedDir, "Assembly-CSharp.dll.bak");
-            string modDllSrc = "/Users/rianwnoviantoro/Dev/Experimental/tavern/TavernMod/bin/Debug/netstandard2.1/TavernMod.dll";
-            string modDllDest = Path.Combine(managedDir, "TavernMod.dll");
+            string managedDir = null;
 
-            if (!Directory.Exists(managedDir))
+            if (args.Length > 0 && !string.IsNullOrWhiteSpace(args[0]))
             {
-                Console.WriteLine($"[ERROR] Managed directory not found: {managedDir}");
+                string input = args[0].Trim('\'', '"');
+                if (Directory.Exists(input))
+                {
+                    if (File.Exists(Path.Combine(input, "Assembly-CSharp.dll")))
+                    {
+                        managedDir = input;
+                    }
+                    else if (Directory.Exists(Path.Combine(input, "Contents/Resources/Data/Managed")))
+                    {
+                        managedDir = Path.Combine(input, "Contents/Resources/Data/Managed");
+                    }
+                    else if (Directory.Exists(Path.Combine(input, "Tavern Master_Data/Managed")))
+                    {
+                        managedDir = Path.Combine(input, "Tavern Master_Data/Managed");
+                    }
+                }
+                else if (File.Exists(input) && Path.GetFileName(input) == "Assembly-CSharp.dll")
+                {
+                    managedDir = Path.GetDirectoryName(input);
+                }
+            }
+
+            if (string.IsNullOrEmpty(managedDir) && Directory.Exists("/Volumes"))
+            {
+                foreach (var v in Directory.GetDirectories("/Volumes"))
+                {
+                    string cand = Path.Combine(v, "SteamLibrary/steamapps/common/Tavern Master/TavernMaster_Mac.app/Contents/Resources/Data/Managed");
+                    if (File.Exists(Path.Combine(cand, "Assembly-CSharp.dll")))
+                    {
+                        managedDir = cand;
+                        break;
+                    }
+                }
+            }
+
+            if (string.IsNullOrEmpty(managedDir))
+            {
+                string home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                string cand = Path.Combine(home, "Library/Application Support/Steam/steamapps/common/Tavern Master/TavernMaster_Mac.app/Contents/Resources/Data/Managed");
+                if (File.Exists(Path.Combine(cand, "Assembly-CSharp.dll")))
+                {
+                    managedDir = cand;
+                }
+            }
+
+            if (string.IsNullOrEmpty(managedDir))
+            {
+                Console.WriteLine("[ERROR] Could not automatically locate Tavern Master. Please specify the path as an argument.");
                 return 1;
             }
+
+            string targetDll = Path.Combine(managedDir, "Assembly-CSharp.dll");
+            string backupDll = Path.Combine(managedDir, "Assembly-CSharp.dll.bak");
+            string baseDir = AppContext.BaseDirectory;
+            string modDllSrc = Path.GetFullPath(Path.Combine(baseDir, "../../../../../TavernMod/bin/Debug/netstandard2.1/TavernMod.dll"));
+            if (!File.Exists(modDllSrc))
+            {
+                modDllSrc = "/Users/rianwnoviantoro/Dev/Experimental/tavern/TavernMod/bin/Debug/netstandard2.1/TavernMod.dll";
+            }
+            string modDllDest = Path.Combine(managedDir, "TavernMod.dll");
+
+            Console.WriteLine($"[INFO] Target Managed Directory: {managedDir}");
 
             if (!File.Exists(targetDll))
             {
